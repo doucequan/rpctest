@@ -16,15 +16,6 @@ import java.util.concurrent.CompletableFuture;
 
 public class ProxyFactory {
 
-    public static void main(String[] args) {
-        Header header = new Header();
-        header.setRequestId(UUID.randomUUID().getLeastSignificantBits());
-        header.setFlag(0x14141414);
-        header.setDataLength(121L);
-        byte[] headerBytes = SerializeUtil.serializeObject(header);
-        System.out.println(headerBytes.length);
-    }
-
     /**
      * 基于接口获取动态代理
      * @param tClass

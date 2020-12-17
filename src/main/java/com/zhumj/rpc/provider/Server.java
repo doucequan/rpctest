@@ -18,8 +18,10 @@ public class Server {
         UserService userService = new UserServiceImpl();
         Dispatcher.addService(UserService.class.getName(), userService);
 
+        NioEventLoopGroup boss = new NioEventLoopGroup(1);
+        NioEventLoopGroup worker = new NioEventLoopGroup(3);
         ChannelFuture bind = new ServerBootstrap()
-                .group(new NioEventLoopGroup(1))
+                .group(boss, worker)
                 .channel(NioServerSocketChannel.class)
                 .childHandler(new ChannelInitializer<NioSocketChannel>() {
                     @Override

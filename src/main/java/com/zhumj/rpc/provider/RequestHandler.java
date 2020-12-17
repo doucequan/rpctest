@@ -13,6 +13,7 @@ import com.zhumj.rpc.common.RequestBody;
 import com.zhumj.rpc.common.ResponseBody;
 import com.zhumj.rpc.common.SerializeUtil;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import io.netty.buffer.ByteBuf;
@@ -38,36 +39,44 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
         // header的长度是104
         PackageMessage<RequestBody> pkg = (PackageMessage) msg;
 
-        RequestBody body = pkg.getContent();
-        // 根据body中的信息，进行方法调用
-        String interfaceName = body.getInterfaceName();
-        String methodName = body.getMethodName();
-        Object[] args = body.getArgs();
-        Class<?>[] parameterTypes = body.getParameterTypes();
+        ctx.executor().parent().next().execute(() -> {
+            RequestBody body = pkg.getContent();
+            // 根据body中的信息，进行方法调用
+            String interfaceName = body.getInterfaceName();
+            String methodName = body.getMethodName();
+            Object[] args = body.getArgs();
+            Class<?>[] parameterTypes = body.getParameterTypes();
 
-        //  根据interfaceName获取实现类，并通过反射调用方法
-        Object service = Dispatcher.getService(interfaceName);
+            //  根据interfaceName获取实现类，并通过反射调用方法
+            Object service = Dispatcher.getService(interfaceName);
 
-        Method method =  service.getClass().getMethod(methodName, parameterTypes);
-        Object result = method.invoke(service, args);
+            Method method = null;
+            Object result = null;
+            try {
+                method = service.getClass().getMethod(methodName, parameterTypes);
+                result = method.invoke(service, args);
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                e.printStackTrace();
+            }
 
-        // 将返回值写回
-        ResponseBody responseBody = new ResponseBody();
-        responseBody.setClassName(result.getClass().getName());
-        responseBody.setRes(result);
+            // 将返回值写回
+            ResponseBody responseBody = new ResponseBody();
+            responseBody.setClassName(result.getClass().getName());
+            responseBody.setRes(result);
 
-        byte[] responseBodyBytes = SerializeUtil.serializeObject(responseBody);
-        Header responseHeader = new Header();
-        responseHeader.setRequestId(pkg.getRequestId());
-        responseHeader.setFlag(0x14141424);
-        responseHeader.setDataLength(responseBodyBytes.length);
+            byte[] responseBodyBytes = SerializeUtil.serializeObject(responseBody);
+            Header responseHeader = new Header();
+            responseHeader.setRequestId(pkg.getRequestId());
+            responseHeader.setFlag(0x14141424);
+            responseHeader.setDataLength(responseBodyBytes.length);
 
-        byte[] responseHeaderBytes = SerializeUtil.serializeObject(responseHeader);
-        ByteBuf buffer = Unpooled.buffer(responseBodyBytes.length + responseHeaderBytes.length);
+            byte[] responseHeaderBytes = SerializeUtil.serializeObject(responseHeader);
+            ByteBuf buffer = Unpooled.buffer(responseBodyBytes.length + responseHeaderBytes.length);
 
-        buffer.writeBytes(responseHeaderBytes);
-        buffer.writeBytes(responseBodyBytes);
-        ctx.channel().writeAndFlush(buffer);
+            buffer.writeBytes(responseHeaderBytes);
+            buffer.writeBytes(responseBodyBytes);
+            ctx.channel().writeAndFlush(buffer);
+        });
 
     }
 }
