@@ -46,6 +46,7 @@ class RequestHandler extends ChannelInboundHandlerAdapter {
 
             if (data.readableBytes() >= header.getDataLength()) {
                 byte[] bodyBytes = new byte[data.readableBytes()];
+                data.readBytes(bodyBytes);
                 RequestBody body = SerializeUtil.deserialize(bodyBytes, RequestBody.class);
                 System.out.println(body);
             }
