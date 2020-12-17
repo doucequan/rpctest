@@ -5,6 +5,6 @@ import com.zhumj.rpc.provider.UserService;
 public class UserServiceImpl implements UserService {
 
     public String getName(Long id) {
-        return null;
+        return "hehehehehe";
     }
 }

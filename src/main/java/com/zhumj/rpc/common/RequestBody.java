@@ -24,6 +24,8 @@ public class RequestBody implements Serializable {
      */
     private String methodName;
 
+    Class<?>[] parameterTypes;
+
     public Object[] getArgs() {
         return args;
     }
@@ -48,12 +50,21 @@ public class RequestBody implements Serializable {
         this.methodName = methodName;
     }
 
+    public Class<?>[] getParameterTypes() {
+        return parameterTypes;
+    }
+
+    public void setParameterTypes(Class<?>[] parameterTypes) {
+        this.parameterTypes = parameterTypes;
+    }
+
     @Override
     public String toString() {
         return "RequestBody{" +
                 "args=" + Arrays.toString(args) +
                 ", interfaceName='" + interfaceName + '\'' +
                 ", methodName='" + methodName + '\'' +
+                ", parameterTypes=" + Arrays.toString(parameterTypes) +
                 '}';
     }
 }

@@ -1,5 +1,6 @@
 package com.zhumj.rpc.provider;
 
+import com.zhumj.rpc.common.ClassUtils;
 import com.zhumj.rpc.common.Header;
 import com.zhumj.rpc.common.RequestBody;
 import com.zhumj.rpc.common.SerializeUtil;
@@ -12,6 +13,8 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+
+import java.lang.reflect.Method;
 
 public class Server {
 
@@ -49,6 +52,23 @@ class RequestHandler extends ChannelInboundHandlerAdapter {
                 data.readBytes(bodyBytes);
                 RequestBody body = SerializeUtil.deserialize(bodyBytes, RequestBody.class);
                 System.out.println(body);
+                // 根据body中的信息，进行方法调用
+                String interfaceName = body.getInterfaceName();
+                String methodName = body.getMethodName();
+                Object[] args = body.getArgs();
+                Class<?>[] parameterTypes = body.getParameterTypes();
+
+                // 1 根据interfaceName获取实现类
+                Object instanceByInterfaceName = ClassUtils.getInstanceByInterfaceName(interfaceName);
+
+                Class<?> aClass = instanceByInterfaceName.getClass();
+
+                Method method = aClass.getMethod(methodName, parameterTypes);
+
+                Object invoke = method.invoke(instanceByInterfaceName, args);
+                System.out.println(invoke);
+
+
             }
         }
 

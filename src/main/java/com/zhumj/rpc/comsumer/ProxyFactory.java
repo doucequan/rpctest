@@ -48,6 +48,7 @@ public class ProxyFactory {
                 requestBody.setArgs(args);
                 requestBody.setMethodName(method.getName());
                 requestBody.setInterfaceName(tClass.getName());
+                requestBody.setParameterTypes(method.getParameterTypes());
                 byte[] requestBodyBytes = SerializeUtil.serializeObject(requestBody);
 
                 Header header = new Header();
