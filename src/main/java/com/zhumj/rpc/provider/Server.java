@@ -3,9 +3,11 @@ package com.zhumj.rpc.provider;
 import com.zhumj.rpc.common.ClassUtils;
 import com.zhumj.rpc.common.Header;
 import com.zhumj.rpc.common.RequestBody;
+import com.zhumj.rpc.common.ResponseBody;
 import com.zhumj.rpc.common.SerializeUtil;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -28,7 +30,7 @@ public class Server {
                     protected void initChannel(NioSocketChannel ch) throws Exception {
                         ch.pipeline().addLast(new RequestHandler());
                     }
-                }).bind(9090);
+                }).bind(2222);
 
         bind.sync().channel().closeFuture().sync();
 
@@ -58,23 +60,31 @@ class RequestHandler extends ChannelInboundHandlerAdapter {
                 Object[] args = body.getArgs();
                 Class<?>[] parameterTypes = body.getParameterTypes();
 
-                // 1 根据interfaceName获取实现类
+                //  根据interfaceName获取实现类，并通过反射调用方法
                 Object instanceByInterfaceName = ClassUtils.getInstanceByInterfaceName(interfaceName);
-
                 Class<?> aClass = instanceByInterfaceName.getClass();
-
                 Method method = aClass.getMethod(methodName, parameterTypes);
+                Object result = method.invoke(instanceByInterfaceName, args);
 
-                Object invoke = method.invoke(instanceByInterfaceName, args);
-                System.out.println(invoke);
+                // 将返回值写回
+                ResponseBody responseBody = new ResponseBody();
+                responseBody.setClassName(result.getClass().getName());
+                responseBody.setRes(result);
 
+                byte[] responseBodyBytes = SerializeUtil.serializeObject(responseBody);
+                Header responseHeader = new Header();
+                responseHeader.setRequestId(header.getRequestId());
+                responseHeader.setFlag(0x14141424);
+                responseHeader.setDataLength(responseBodyBytes.length);
 
+                byte[] responseHeaderBytes = SerializeUtil.serializeObject(responseHeader);
+                ByteBuf buffer = Unpooled.buffer(responseBodyBytes.length + responseHeaderBytes.length);
+
+                buffer.writeBytes(responseHeaderBytes);
+                buffer.writeBytes(responseBodyBytes);
+                ctx.channel().writeAndFlush(buffer);
             }
         }
-
-
-
-
 
     }
 }

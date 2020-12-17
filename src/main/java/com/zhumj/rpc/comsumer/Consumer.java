@@ -10,7 +10,9 @@ public class Consumer {
         // 获取到远程服务
         UserService userService = ProxyFactory.getProxy(UserService.class);
 
-        userService.getName(121L);
+        String name = userService.getName(121L);
+
+        System.out.println("我拿到结果啦，哈哈"  + name);
     }
 
 }
