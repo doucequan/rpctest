@@ -17,9 +17,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.zhumj.rpc.protocol.RequestBody;
 import com.zhumj.rpc.utils.SerializeUtil;
 import com.zhumj.rpc.protocol.Header;
+import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.http.*;
 
 /**
  * @author 朱梦杰
@@ -53,7 +57,10 @@ public class ClientFactory {
         // 可以根据协议走不同的分支
         String protocol = "http";
         if (protocol.equals("http")) {
-            return httpUrlTransport(requestBody);
+//            return httpUrlTransport(requestBody);
+            CompletableFuture<Object> objectCompletableFuture = new CompletableFuture<>();
+            nettyHttpTransport(requestBody,objectCompletableFuture);
+            return objectCompletableFuture;
         }
 
 
@@ -63,7 +70,7 @@ public class ClientFactory {
         byte[] headerBytes = SerializeUtil.serializeObject(header);
 
         // 建立与远程的连接，进行数据的传输
-        Channel channel = ClientFactory.getClient("user-service");
+        Channel channel = getClient("user-service");
         ByteBuf buffer = Unpooled.buffer(headerBytes.length + requestBodyBytes.length);
 
         buffer.writeBytes(headerBytes);
@@ -74,6 +81,50 @@ public class ClientFactory {
         return future;
     }
 
+    private static void nettyHttpTransport(RequestBody requestBody, CompletableFuture future) {
+        Bootstrap handler = new Bootstrap().group(new NioEventLoopGroup(1))
+                .channel(NioSocketChannel.class)
+                .handler(new ChannelInitializer<NioSocketChannel>() {
+                    @Override
+                    protected void initChannel(NioSocketChannel ch) throws Exception {
+                        ch.pipeline().addLast(new HttpClientCodec())
+                                .addLast(new HttpObjectAggregator(1024 * 512))
+                                .addLast(new ChannelInboundHandlerAdapter() {
+
+                                    @Override
+                                    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                                        DefaultFullHttpResponse response = (DefaultFullHttpResponse) msg;
+
+
+                                        ByteBuf content = response.content();
+
+                                        byte[] bytes = new byte[content.readableBytes()];
+
+                                        content.readBytes(bytes);
+                                        Object res = SerializeUtil.deserialize(bytes, Object.class);
+
+                                        future.complete(res);
+                                    }
+                                });
+                    }
+                });
+
+        try {
+            Channel client = handler.connect("localhost", 9090).sync().channel();
+            byte[] bytes = SerializeUtil.serializeObject(requestBody);
+            DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_0,
+                    HttpMethod.POST, "/",
+                    Unpooled.copiedBuffer(bytes)
+            );
+            request.headers().set(HttpHeaders.Names.CONTENT_LENGTH, bytes.length);
+            client.writeAndFlush(request);
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+    }
+
     private static CompletableFuture httpUrlTransport(RequestBody requestBody) {
         RuntimeException runtimeException = new RuntimeException("unknown error....");
         try {
@@ -82,7 +133,6 @@ public class ClientFactory {
             urlConnection.setRequestMethod("POST");
             urlConnection.setDoInput(true);
             urlConnection.setDoOutput(true);
-
             OutputStream outputStream = urlConnection.getOutputStream();
             ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
             objectOutputStream.writeObject(requestBody);

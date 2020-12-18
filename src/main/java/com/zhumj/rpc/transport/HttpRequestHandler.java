@@ -19,6 +19,7 @@ public class HttpRequestHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 
         DefaultFullHttpRequest request = (DefaultFullHttpRequest) msg;
+        System.out.println(Thread.currentThread().getName() + "\t" + request.toString());
 
         ByteBuf content = request.content();
 
@@ -48,7 +49,7 @@ public class HttpRequestHandler extends ChannelInboundHandlerAdapter {
         ByteBuf byteBuf = Unpooled.copiedBuffer(responseBytes);
 
         DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_0, HttpResponseStatus.OK, byteBuf);
-
+        response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, responseBytes.length);
         ctx.writeAndFlush(response);
 
 

@@ -33,7 +33,7 @@ public class ClientPool {
 
     private InetSocketAddress[] providerAddresses;
 
-    private final int poolSize = 1;
+    private final int poolSize = 10;
 
     private boolean init;
 

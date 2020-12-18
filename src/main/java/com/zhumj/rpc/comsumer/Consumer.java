@@ -16,7 +16,7 @@ public class Consumer {
 //        Thread.sleep(121);
 
         UserService userService = ProxyFactory.getProxy(UserService.class);
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 10; i++) {
 
             new Thread(() -> {
                 String name = userService.getName(121L);

@@ -32,7 +32,7 @@ public class Server {
         Dispatcher.addService(UserService.class.getName(), userService);
 
         NioEventLoopGroup boss = new NioEventLoopGroup(1);
-        NioEventLoopGroup worker = new NioEventLoopGroup(3);
+        NioEventLoopGroup worker = new NioEventLoopGroup(2);
         ChannelFuture bind = new ServerBootstrap()
                 .group(boss, worker)
                 .channel(NioServerSocketChannel.class)
