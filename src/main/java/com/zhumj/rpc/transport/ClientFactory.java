@@ -8,6 +8,8 @@
 package com.zhumj.rpc.transport;
 
 
+import java.io.*;
+import java.net.*;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +50,13 @@ public class ClientFactory {
     }
 
     public static CompletableFuture transport(RequestBody requestBody) {
+        // 可以根据协议走不同的分支
+        String protocol = "http";
+        if (protocol.equals("http")) {
+            return httpUrlTransport(requestBody);
+        }
+
+
         byte[] requestBodyBytes = SerializeUtil.serializeObject(requestBody);
 
         Header header = Header.createRequestHeader(requestBodyBytes.length);
@@ -63,6 +72,42 @@ public class ClientFactory {
         ReadHandler.addCallback(header.getRequestId(), future);
         channel.writeAndFlush(buffer);
         return future;
+    }
+
+    private static CompletableFuture httpUrlTransport(RequestBody requestBody) {
+        RuntimeException runtimeException = new RuntimeException("unknown error....");
+        try {
+            URL url = new URL("http", "localhost", 9090, "/");
+            HttpURLConnection urlConnection = (HttpURLConnection)url.openConnection();
+            urlConnection.setRequestMethod("POST");
+            urlConnection.setDoInput(true);
+            urlConnection.setDoOutput(true);
+
+            OutputStream outputStream = urlConnection.getOutputStream();
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
+            objectOutputStream.writeObject(requestBody);
+
+            if (urlConnection.getResponseCode() == 200) {
+                InputStream inputStream = urlConnection.getInputStream();
+
+                ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
+
+                Object o = objectInputStream.readObject();
+                CompletableFuture future = new CompletableFuture();
+                future.complete(o);
+                return future;
+            }
+        } catch (MalformedURLException e) {
+            runtimeException = new RuntimeException(e.getCause());
+            e.printStackTrace();
+        } catch (IOException e) {
+            runtimeException = new RuntimeException(e.getCause());
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            runtimeException = new RuntimeException(e.getCause());
+            e.printStackTrace();
+        }
+        throw runtimeException;
     }
 
 }
