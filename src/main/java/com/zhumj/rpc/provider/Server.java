@@ -15,8 +15,13 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 public class Server {
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args)  {
 
+       startServer();
+
+    }
+
+    public static void startServer() {
         UserService userService = new UserServiceImpl();
         Dispatcher.addService(UserService.class.getName(), userService);
 
@@ -30,12 +35,15 @@ public class Server {
                     protected void initChannel(NioSocketChannel ch) throws Exception {
                         ChannelPipeline pipeline = ch.pipeline();
                         pipeline.addLast(new DecodeHandler())
-                            .addLast(new RequestHandler());
+                                .addLast(new RequestHandler());
                     }
                 }).bind(9090);
 
-        bind.sync().channel().closeFuture().sync();
-
+        try {
+            bind.sync().channel().closeFuture().sync();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }
 
