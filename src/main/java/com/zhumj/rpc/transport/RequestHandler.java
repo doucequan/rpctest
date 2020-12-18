@@ -5,13 +5,13 @@
  * You shall not disclose such Confidential Information and shall use it only
  * in accordance with the terms of the license agreement you entered into with GuaHao.com.
  */
-package com.zhumj.rpc.provider;
+package com.zhumj.rpc.transport;
 
-import com.zhumj.rpc.common.Header;
-import com.zhumj.rpc.common.PackageMessage;
-import com.zhumj.rpc.common.RequestBody;
-import com.zhumj.rpc.common.ResponseBody;
-import com.zhumj.rpc.common.SerializeUtil;
+import com.zhumj.rpc.protocol.Header;
+import com.zhumj.rpc.Dispatcher;
+import com.zhumj.rpc.utils.PackageMessage;
+import com.zhumj.rpc.protocol.RequestBody;
+import com.zhumj.rpc.utils.SerializeUtil;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -60,11 +60,7 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
             }
 
             // 将返回值写回
-            ResponseBody responseBody = new ResponseBody();
-            responseBody.setClassName(result.getClass().getName());
-            responseBody.setRes(result);
-
-            byte[] responseBodyBytes = SerializeUtil.serializeObject(responseBody);
+            byte[] responseBodyBytes = SerializeUtil.serializeObject(result);
             Header responseHeader = new Header();
             responseHeader.setRequestId(pkg.getRequestId());
             responseHeader.setFlag(0x14141424);

@@ -5,7 +5,7 @@
  * You shall not disclose such Confidential Information and shall use it only
  * in accordance with the terms of the license agreement you entered into with GuaHao.com.
  */
-package com.zhumj.rpc.provider;
+package com.zhumj.rpc;
 
 import java.util.concurrent.ConcurrentHashMap;
 

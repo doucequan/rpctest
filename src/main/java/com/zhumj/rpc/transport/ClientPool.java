@@ -5,9 +5,7 @@
  * You shall not disclose such Confidential Information and shall use it only
  * in accordance with the terms of the license agreement you entered into with GuaHao.com.
  */
-package com.zhumj.rpc.comsumer;
-
-import com.zhumj.rpc.common.DecodeHandler;
+package com.zhumj.rpc.transport;
 
 import java.net.InetSocketAddress;
 

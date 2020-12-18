@@ -1,6 +1,9 @@
-package com.zhumj.rpc.common;
+package com.zhumj.rpc.protocol;
+
+import com.zhumj.rpc.utils.SerializeUtil;
 
 import java.io.Serializable;
+import java.util.UUID;
 
 public class Header implements Serializable {
 
@@ -16,6 +19,20 @@ public class Header implements Serializable {
     private long dataLength;
 
     private long flag;
+
+    public static transient int headerLength = 106;
+
+    public static void main(String[] args) {
+        System.out.println(SerializeUtil.serializeObject(new Header()).length);
+    }
+
+    public static Header createRequestHeader(long bodyLength) {
+        Header header = new Header();
+        header.setRequestId(UUID.randomUUID().getLeastSignificantBits());
+        header.setFlag(0x14141414);
+        header.setDataLength(bodyLength);
+        return header;
+    }
 
     public long getRequestId() {
         return requestId;

@@ -5,10 +5,9 @@
  * You shall not disclose such Confidential Information and shall use it only
  * in accordance with the terms of the license agreement you entered into with GuaHao.com.
  */
-package com.zhumj.rpc.comsumer;
+package com.zhumj.rpc.transport;
 
-import com.zhumj.rpc.common.PackageMessage;
-import com.zhumj.rpc.common.ResponseBody;
+import com.zhumj.rpc.utils.PackageMessage;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,9 +31,9 @@ public class ReadHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        PackageMessage<ResponseBody> data = (PackageMessage) msg;
+        PackageMessage data = (PackageMessage) msg;
 
         CompletableFuture future = responseCallback.get(data.getRequestId());
-        future.complete(data.getContent().getRes());
+        future.complete(data.getContent());
     }
 }

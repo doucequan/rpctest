@@ -1,4 +1,4 @@
-package com.zhumj.rpc.common;
+package com.zhumj.rpc.utils;
 
 import java.io.*;
 

@@ -1,6 +1,7 @@
 package com.zhumj.rpc.comsumer;
 
 import com.zhumj.rpc.provider.UserService;
+import com.zhumj.rpc.proxy.ProxyFactory;
 
 public class Consumer {
 

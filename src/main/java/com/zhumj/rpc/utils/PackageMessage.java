@@ -5,10 +5,9 @@
  * You shall not disclose such Confidential Information and shall use it only
  * in accordance with the terms of the license agreement you entered into with GuaHao.com.
  */
-package com.zhumj.rpc.common;
+package com.zhumj.rpc.utils;
 
-import com.zhumj.rpc.common.Header;
-import com.zhumj.rpc.common.RequestBody;
+import com.zhumj.rpc.protocol.Header;
 
 /**
  * 每个完整的数据包包含的信息

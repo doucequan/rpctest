@@ -1,8 +1,7 @@
-package com.zhumj.rpc.common;
+package com.zhumj.rpc.utils;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.JarURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;

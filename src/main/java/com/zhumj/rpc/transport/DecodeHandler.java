@@ -5,10 +5,14 @@
  * You shall not disclose such Confidential Information and shall use it only
  * in accordance with the terms of the license agreement you entered into with GuaHao.com.
  */
-package com.zhumj.rpc.common;
+package com.zhumj.rpc.transport;
 
 import java.util.List;
 
+import com.zhumj.rpc.utils.PackageMessage;
+import com.zhumj.rpc.protocol.RequestBody;
+import com.zhumj.rpc.utils.SerializeUtil;
+import com.zhumj.rpc.protocol.Header;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -27,28 +31,28 @@ public class DecodeHandler extends ByteToMessageDecoder {
         throws Exception {
 
         // 只有拿到完整的头部信息，才进行解码，否则，等待数据到达再进行下一步的处理
-        while (byteBuf.readableBytes() >= 104) {
-            byte[] headerBytes = new byte[104];
+        while (byteBuf.readableBytes() >= Header.headerLength) {
+            byte[] headerBytes = new byte[Header.headerLength];
             // 不移动读取的指针，防止读body内容不够的时候，会break，等待下个包的到达后读取，如果指针移动了，将无法获取正确的header了
             byteBuf.getBytes(byteBuf.readerIndex(), headerBytes);
 
             Header header = SerializeUtil.deserialize(headerBytes, Header.class);
 
             // 包剩下的内容不够数据的长度的话，不进行处理
-            if (byteBuf.readableBytes() < header.getDataLength() + 104) {
+            if (byteBuf.readableBytes() < header.getDataLength() + Header.headerLength) {
                 break;
             }
             // body数据够的话，将读取的指针移动到body开始的位置
-            byteBuf.readBytes(104); // 此方法会将readerIndex移动到104，然后返回当前readIndex到104的新的buffer
+            byteBuf.readBytes(Header.headerLength); // 此方法会将readerIndex移动到104，然后返回当前readIndex到104的新的buffer
             byte[] bodyBytes = new byte[(int)header.getDataLength()];
 
             byteBuf.readBytes(bodyBytes);
             // 响应，消费者解码
             if (header.getFlag() == 0x14141424) {
-                ResponseBody body = SerializeUtil.deserialize(bodyBytes, ResponseBody.class);
+                Object result = SerializeUtil.deserialize(bodyBytes, Object.class);
                 PackageMessage pkg = new PackageMessage();
                 pkg.setHeader(header);
-                pkg.setContent(body);
+                pkg.setContent(result);
                 // 每一个pkg都会触发下一个pipeline
                 list.add(pkg);
             }

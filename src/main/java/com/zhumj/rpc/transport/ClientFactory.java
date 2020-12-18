@@ -5,12 +5,18 @@
  * You shall not disclose such Confidential Information and shall use it only
  * in accordance with the terms of the license agreement you entered into with GuaHao.com.
  */
-package com.zhumj.rpc.comsumer;
+package com.zhumj.rpc.transport;
 
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.zhumj.rpc.protocol.RequestBody;
+import com.zhumj.rpc.utils.SerializeUtil;
+import com.zhumj.rpc.protocol.Header;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 
 /**
@@ -39,6 +45,24 @@ public class ClientFactory {
         clientPool = new ClientPool(providerName);
         PROVIDER_CLIENT_POOL.putIfAbsent(providerName, clientPool);
         return PROVIDER_CLIENT_POOL.get(providerName).getClient();
+    }
+
+    public static CompletableFuture transport(RequestBody requestBody) {
+        byte[] requestBodyBytes = SerializeUtil.serializeObject(requestBody);
+
+        Header header = Header.createRequestHeader(requestBodyBytes.length);
+        byte[] headerBytes = SerializeUtil.serializeObject(header);
+
+        // 建立与远程的连接，进行数据的传输
+        Channel channel = ClientFactory.getClient("user-service");
+        ByteBuf buffer = Unpooled.buffer(headerBytes.length + requestBodyBytes.length);
+
+        buffer.writeBytes(headerBytes);
+        buffer.writeBytes(requestBodyBytes);
+        CompletableFuture future = new CompletableFuture();
+        ReadHandler.addCallback(header.getRequestId(), future);
+        channel.writeAndFlush(buffer);
+        return future;
     }
 
 }

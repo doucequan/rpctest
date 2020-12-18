@@ -1,4 +1,4 @@
-package com.zhumj.rpc.common;
+package com.zhumj.rpc.protocol;
 
 import java.io.Serializable;
 import java.util.Arrays;
