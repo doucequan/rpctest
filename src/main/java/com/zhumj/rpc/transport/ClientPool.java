@@ -10,14 +10,20 @@ package com.zhumj.rpc.transport;
 import java.net.InetSocketAddress;
 
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.zhumj.rpc.protocol.ProtocolEnum;
+import com.zhumj.rpc.utils.SerializeUtil;
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 
@@ -36,7 +42,7 @@ public class ClientPool {
 
     private InetSocketAddress[] providerAddresses;
 
-    private final int poolSize = 3;
+    private final int poolSize = 2;
 
     private boolean init;
 
@@ -85,17 +91,38 @@ public class ClientPool {
     private void initBootstrap() {
         // http协议使用netty自身封装好的解码器（将byteBuf转为response），然后假如自定义的HttpResponseHandler，取出结果
         NioEventLoopGroup group = new NioEventLoopGroup(1);
-        String protocol = System.getProperties().getProperty(ProtocolEnum.protocol_key, ProtocolEnum.rpc.name());
-        if (protocol.equals(ProtocolEnum.rpc.name())) {
-            bootstrap = new Bootstrap().group(group).channel(NioSocketChannel.class)
-                    .handler(new ChannelInitializer<NioSocketChannel>() {
-                        @Override
-                        protected void initChannel(NioSocketChannel ch) throws Exception {
-                            ch.pipeline().addLast(new DecodeHandler()).addLast(new CustomRpcResponseHandler());
-                        }
-                    });
-            return;
+        String protocol = System.getProperties().getProperty(ProtocolEnum.protocol_key, ProtocolEnum.rpc.protocolName);
+
+        ProtocolEnum protocolEnum = ProtocolEnum.fromCode(protocol);
+        if (Objects.isNull(protocolEnum)) {
+            throw new RuntimeException("不支持的传输协议");
         }
+        switch (protocolEnum) {
+            case rpc:
+                initRpcBootstrap();
+                break;
+            case stateful_http:
+                initStatefulHttpBootstrap();
+                break;
+            case stateless_http:
+                initStatelessHttpBootstrap();
+                break;
+        }
+    }
+
+    private void initRpcBootstrap() {
+        NioEventLoopGroup group = new NioEventLoopGroup(1);
+        bootstrap = new Bootstrap().group(group).channel(NioSocketChannel.class)
+                .handler(new ChannelInitializer<NioSocketChannel>() {
+                    @Override
+                    protected void initChannel(NioSocketChannel ch) throws Exception {
+                        ch.pipeline().addLast(new DecodeHandler()).addLast(new CustomRpcResponseHandler());
+                    }
+                });
+    }
+
+    private void initStatefulHttpBootstrap() {
+        NioEventLoopGroup group = new NioEventLoopGroup(1);
         bootstrap = new Bootstrap().group(group).channel(NioSocketChannel.class)
                 .handler(new ChannelInitializer<NioSocketChannel>() {
                     @Override
@@ -103,6 +130,19 @@ public class ClientPool {
                         ch.pipeline().addLast(new HttpClientCodec())
                                 .addLast(new HttpObjectAggregator(1024 * 512))
                                 .addLast(new HttpStatefulResponseHandler());
+                    }
+                });
+    }
+
+    private void initStatelessHttpBootstrap() {
+        NioEventLoopGroup group = new NioEventLoopGroup(1);
+        bootstrap = new Bootstrap().group(group)
+                .channel(NioSocketChannel.class)
+                .handler(new ChannelInitializer<NioSocketChannel>() {
+                    @Override
+                    protected void initChannel(NioSocketChannel ch) throws Exception {
+                        ch.pipeline().addLast(new HttpClientCodec())
+                                .addLast(new HttpObjectAggregator(1024 * 512));
                     }
                 });
     }

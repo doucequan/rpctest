@@ -7,9 +7,11 @@ public enum ProtocolEnum {
     stateful_http("statefulHttp"),
     stateless_http("statelessHttp"),
     http_url("httpUrl");
-    private String protocolName;
+    public String protocolName;
 
     public static String protocol_key = "protocol";
+
+    public static String headerRequestId = "requestId";
 
     ProtocolEnum(String protocolName) {
         this.protocolName = protocolName;

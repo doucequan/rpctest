@@ -74,7 +74,7 @@ public class ClientFactory {
             case stateful_http:
                 return nettyStatefulHttpTransport(requestBody);
             case stateless_http:
-                return nettyHttpTransport(requestBody);
+                return nettyStatelessHttpTransport(requestBody);
             case http_url:
                 return httpUrlTransport(requestBody);
             default:
@@ -119,45 +119,22 @@ public class ClientFactory {
 
 
 
-    private static CompletableFuture nettyHttpTransport(RequestBody requestBody) {
-        CompletableFuture<Object> future = new CompletableFuture<>();
-        Bootstrap handler = new Bootstrap().group(new NioEventLoopGroup(1))
-                .channel(NioSocketChannel.class)
-                .handler(new ChannelInitializer<NioSocketChannel>() {
-                    @Override
-                    protected void initChannel(NioSocketChannel ch) throws Exception {
-                        ch.pipeline().addLast(new HttpClientCodec())
-                                .addLast(new HttpObjectAggregator(1024 * 512))
-                                .addLast(new ChannelInboundHandlerAdapter() {
+    private static CompletableFuture nettyStatelessHttpTransport(RequestBody requestBody) {
+        Channel client = getClient("user-service");
+        // 处理相应后，客户端的回调
+        CompletableFuture future = new CompletableFuture();
+        // todo 这个骚操作有问题的，client是可以复用的，并发的情况下会添加很多处理相应的handler。
+        // 需要在handler当中处理完成之后，把自己remove掉。
 
-                                    @Override
-                                    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                                        DefaultFullHttpResponse response = (DefaultFullHttpResponse) msg;
-                                        ByteBuf content = response.content();
-                                        byte[] bytes = new byte[content.readableBytes()];
+        client.pipeline().addLast(new HttpStatelessResponseHandler(future));
 
-                                        content.readBytes(bytes);
-                                        Object res = SerializeUtil.deserialize(bytes, Object.class);
-
-                                        future.complete(res);
-                                    }
-                                });
-                    }
-                });
-
-        try {
-            Channel client = handler.connect("localhost", 9090).sync().channel();
-            byte[] bytes = SerializeUtil.serializeObject(requestBody);
-            DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_0,
-                    HttpMethod.POST, "/",
-                    Unpooled.copiedBuffer(bytes)
-            );
-            request.headers().set(HttpHeaders.Names.CONTENT_LENGTH, bytes.length);
-            client.writeAndFlush(request);
-
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        byte[] bytes = SerializeUtil.serializeObject(requestBody);
+        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_0,
+                HttpMethod.POST, "/",
+                Unpooled.copiedBuffer(bytes)
+        );
+        request.headers().set(HttpHeaders.Names.CONTENT_LENGTH, bytes.length);
+        client.writeAndFlush(request);
         return future;
     }
 

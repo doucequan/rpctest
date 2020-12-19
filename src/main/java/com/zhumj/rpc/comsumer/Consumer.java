@@ -19,10 +19,11 @@ public class Consumer {
         UserService userService = ProxyFactory.getProxy(UserService.class);
         for (int i = 0; i < 20; i++) {
 
+            int finalI = i;
             new Thread(() -> {
 //                String name = userService.getName(121L);
 
-                Student student = userService.get("9527", "周星星");
+                Student student = userService.get(finalI + "", "周星星");
 
                 System.out.println(student);
 

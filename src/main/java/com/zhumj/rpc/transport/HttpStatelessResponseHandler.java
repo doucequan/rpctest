@@ -10,25 +10,28 @@ import java.util.concurrent.CompletableFuture;
 
 public class HttpStatelessResponseHandler extends ChannelInboundHandlerAdapter {
 
+    private CompletableFuture completableFuture;
 
+    public HttpStatelessResponseHandler(CompletableFuture completableFuture) {
+        this.completableFuture = completableFuture;
+    }
 
-//    @Override
-//    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-//        throw new RuntimeException(cause);
-//    }
-//
-//    @Override
-//    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-//        DefaultFullHttpResponse response = (DefaultFullHttpResponse) msg;
-//        ByteBuf content = response.content();
-//        byte[] bytes = new byte[content.readableBytes()];
-//
-//        content.readBytes(bytes);
-//        Object res = SerializeUtil.deserialize(bytes, Object.class);
-//
-//        CompletableFuture future = ResponseMappingCallback.getCallback(Long.parseLong(requestId));
-//
-//        future.complete(res);
-//    }
-//
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        throw new RuntimeException(cause);
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        DefaultFullHttpResponse response = (DefaultFullHttpResponse) msg;
+        ByteBuf content = response.content();
+        byte[] bytes = new byte[content.readableBytes()];
+
+        content.readBytes(bytes);
+        Object res = SerializeUtil.deserialize(bytes, Object.class);
+        System.out.println("-----" + res + "------");
+        completableFuture.complete(res);
+        ctx.channel().pipeline().remove(this);
+    }
+
 }
