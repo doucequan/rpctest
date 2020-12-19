@@ -8,4 +8,6 @@ public interface UserService {
      * @return
      */
     String getName(Long id);
+
+    Student get(String no, String name);
 }

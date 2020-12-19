@@ -8,22 +8,29 @@
 package com.zhumj.rpc.transport;
 
 
-import java.io.*;
-import java.net.*;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-
+import com.zhumj.rpc.protocol.Header;
+import com.zhumj.rpc.protocol.ProtocolEnum;
 import com.zhumj.rpc.protocol.RequestBody;
 import com.zhumj.rpc.utils.SerializeUtil;
-import com.zhumj.rpc.protocol.Header;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
+
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author 朱梦杰
@@ -55,33 +62,65 @@ public class ClientFactory {
 
     public static CompletableFuture transport(RequestBody requestBody) {
         // 可以根据协议走不同的分支
-        String protocol = "http";
-        if (protocol.equals("http")) {
-//            return httpUrlTransport(requestBody);
-            CompletableFuture<Object> objectCompletableFuture = new CompletableFuture<>();
-            nettyHttpTransport(requestBody,objectCompletableFuture);
-            return objectCompletableFuture;
+        String protocol = System.getProperties().getProperty(ProtocolEnum.protocol_key, ProtocolEnum.rpc.name());
+        ProtocolEnum protocolEnum = ProtocolEnum.fromCode(protocol);
+
+        if (Objects.isNull(protocolEnum)) {
+            throw new RuntimeException("不支持的协议" + protocol);
         }
+        switch (protocolEnum) {
+            case rpc:
+                return customRpcTransport(requestBody);
+            case stateful_http:
+                return nettyStatefulHttpTransport(requestBody);
+            case stateless_http:
+                return nettyHttpTransport(requestBody);
+            case http_url:
+                return httpUrlTransport(requestBody);
+            default:
+                throw new RuntimeException("不支持的协议" + protocol);
+        }
+    }
 
+    private static CompletableFuture nettyStatefulHttpTransport(RequestBody requestBody) {
+        Channel channel = getClient("user-service");
+        byte[] bytes = SerializeUtil.serializeObject(requestBody);
+        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_0,
+                HttpMethod.POST, "/",
+                Unpooled.copiedBuffer(bytes)
+        );
+        request.headers().set(HttpHeaders.Names.CONTENT_LENGTH, bytes.length);
 
+        long requestId = UUID.randomUUID().getLeastSignificantBits();
+        CompletableFuture future = new CompletableFuture();
+        ResponseMappingCallback.registerCallback(requestId, future);
+
+        request.headers().set("requestId", requestId);
+        channel.writeAndFlush(request);
+        return future;
+    }
+
+    private static CompletableFuture customRpcTransport(RequestBody requestBody) {
         byte[] requestBodyBytes = SerializeUtil.serializeObject(requestBody);
 
         Header header = Header.createRequestHeader(requestBodyBytes.length);
         byte[] headerBytes = SerializeUtil.serializeObject(header);
 
-        // 建立与远程的连接，进行数据的传输
         Channel channel = getClient("user-service");
         ByteBuf buffer = Unpooled.buffer(headerBytes.length + requestBodyBytes.length);
 
         buffer.writeBytes(headerBytes);
         buffer.writeBytes(requestBodyBytes);
         CompletableFuture future = new CompletableFuture();
-        ReadHandler.addCallback(header.getRequestId(), future);
+        ResponseMappingCallback.registerCallback(header.getRequestId(), future);
         channel.writeAndFlush(buffer);
         return future;
     }
 
-    private static void nettyHttpTransport(RequestBody requestBody, CompletableFuture future) {
+
+
+    private static CompletableFuture nettyHttpTransport(RequestBody requestBody) {
+        CompletableFuture<Object> future = new CompletableFuture<>();
         Bootstrap handler = new Bootstrap().group(new NioEventLoopGroup(1))
                 .channel(NioSocketChannel.class)
                 .handler(new ChannelInitializer<NioSocketChannel>() {
@@ -94,10 +133,7 @@ public class ClientFactory {
                                     @Override
                                     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                                         DefaultFullHttpResponse response = (DefaultFullHttpResponse) msg;
-
-
                                         ByteBuf content = response.content();
-
                                         byte[] bytes = new byte[content.readableBytes()];
 
                                         content.readBytes(bytes);
@@ -122,7 +158,7 @@ public class ClientFactory {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-
+        return future;
     }
 
     private static CompletableFuture httpUrlTransport(RequestBody requestBody) {

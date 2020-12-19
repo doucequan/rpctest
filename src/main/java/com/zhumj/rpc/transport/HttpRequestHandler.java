@@ -50,6 +50,11 @@ public class HttpRequestHandler extends ChannelInboundHandlerAdapter {
 
         DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_0, HttpResponseStatus.OK, byteBuf);
         response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, responseBytes.length);
+
+        String requestId = request.headers().get("requestId");
+        if (requestId != null && requestId.length() > 0) {
+            response.headers().set("requestId", requestId);
+        }
         ctx.writeAndFlush(response);
 
 

@@ -12,11 +12,14 @@ import java.net.InetSocketAddress;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.zhumj.rpc.protocol.ProtocolEnum;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 
 /**
  * 连接池，该连接池是基于某个provider的
@@ -33,7 +36,7 @@ public class ClientPool {
 
     private InetSocketAddress[] providerAddresses;
 
-    private final int poolSize = 10;
+    private final int poolSize = 3;
 
     private boolean init;
 
@@ -57,6 +60,7 @@ public class ClientPool {
         if (client == null || !client.isActive()) {
             try {
                 client = bootstrap.connect(providerAddresses[0]).sync().channel();
+                System.out.println("创建连接：" + client);
                 clients[index] = client;
                 return client;
             } catch (InterruptedException e) {
@@ -71,17 +75,36 @@ public class ClientPool {
             return;
         }
         clients = new NioSocketChannel[poolSize];
-        NioEventLoopGroup group = new NioEventLoopGroup(1);
-        bootstrap = new Bootstrap().group(group).channel(NioSocketChannel.class)
-            .handler(new ChannelInitializer<NioSocketChannel>() {
-                @Override
-                protected void initChannel(NioSocketChannel ch) throws Exception {
-                    ch.pipeline().addLast(new DecodeHandler()).addLast(new ReadHandler());
-                }
-            });
-        init = true;
+
+        initBootstrap();
         // todo 调用注册中心，根据providerName获取服务提供方的ip：port，还是根据调用的接口名称获取？？？
         providerAddresses = new InetSocketAddress[]{new InetSocketAddress("127.0.0.1", 9090)};
+        init = true;
+    }
+
+    private void initBootstrap() {
+        // http协议使用netty自身封装好的解码器（将byteBuf转为response），然后假如自定义的HttpResponseHandler，取出结果
+        NioEventLoopGroup group = new NioEventLoopGroup(1);
+        String protocol = System.getProperties().getProperty(ProtocolEnum.protocol_key, ProtocolEnum.rpc.name());
+        if (protocol.equals(ProtocolEnum.rpc.name())) {
+            bootstrap = new Bootstrap().group(group).channel(NioSocketChannel.class)
+                    .handler(new ChannelInitializer<NioSocketChannel>() {
+                        @Override
+                        protected void initChannel(NioSocketChannel ch) throws Exception {
+                            ch.pipeline().addLast(new DecodeHandler()).addLast(new CustomRpcResponseHandler());
+                        }
+                    });
+            return;
+        }
+        bootstrap = new Bootstrap().group(group).channel(NioSocketChannel.class)
+                .handler(new ChannelInitializer<NioSocketChannel>() {
+                    @Override
+                    protected void initChannel(NioSocketChannel ch) throws Exception {
+                        ch.pipeline().addLast(new HttpClientCodec())
+                                .addLast(new HttpObjectAggregator(1024 * 512))
+                                .addLast(new HttpStatefulResponseHandler());
+                    }
+                });
     }
 }
 

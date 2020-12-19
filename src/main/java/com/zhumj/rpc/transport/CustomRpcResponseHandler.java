@@ -21,19 +21,13 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
  * @version V1.0
  * @since 2020-12-17 13:37
  */
-public class ReadHandler extends ChannelInboundHandlerAdapter {
-
-    private static final ConcurrentHashMap<Long, CompletableFuture> responseCallback = new ConcurrentHashMap<>();
-
-    public static void addCallback(Long requestId, CompletableFuture future) {
-        responseCallback.put(requestId, future);
-    }
+public class CustomRpcResponseHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         PackageMessage data = (PackageMessage) msg;
 
-        CompletableFuture future = responseCallback.get(data.getRequestId());
+        CompletableFuture future = ResponseMappingCallback.getCallback(data.getRequestId());
         future.complete(data.getContent());
     }
 }

@@ -1,9 +1,9 @@
 package com.zhumj.rpc.provider;
 
 import com.zhumj.rpc.Dispatcher;
-import com.zhumj.rpc.transport.DecodeHandler;
+import com.zhumj.rpc.protocol.ProtocolEnum;
 import com.zhumj.rpc.provider.impl.UserServiceImpl;
-
+import com.zhumj.rpc.transport.DecodeHandler;
 import com.zhumj.rpc.transport.HttpRequestHandler;
 import com.zhumj.rpc.transport.RequestHandler;
 import io.netty.bootstrap.ServerBootstrap;
@@ -13,18 +13,20 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpServerCodec;
 
 public class Server {
 
     public static void main(String[] args)  {
 
-//       startServer();
-       startHttpServer();
-
+        String property = System.getProperties().getProperty(ProtocolEnum.protocol_key, ProtocolEnum.rpc.name());
+        if (ProtocolEnum.rpc.name().equals(property)) {
+            System.out.println("服务端使用rpc协议");
+            startServer();
+        } else {
+            startHttpServer();
+        }
     }
 
     public static void startHttpServer() {
