@@ -29,7 +29,6 @@ public class HttpStatelessResponseHandler extends ChannelInboundHandlerAdapter {
 
         content.readBytes(bytes);
         Object res = SerializeUtil.deserialize(bytes, Object.class);
-        System.out.println("-----" + res + "------");
         completableFuture.complete(res);
         ctx.channel().pipeline().remove(this);
     }

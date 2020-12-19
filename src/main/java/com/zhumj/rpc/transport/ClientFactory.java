@@ -126,16 +126,18 @@ public class ClientFactory {
         // todo 这个骚操作有问题的，client是可以复用的，并发的情况下会添加很多处理相应的handler。
         // 需要在handler当中处理完成之后，把自己remove掉。
 
-        client.pipeline().addLast(new HttpStatelessResponseHandler(future));
+        synchronized (client) {
+            client.pipeline().addLast(new HttpStatelessResponseHandler(future));
 
-        byte[] bytes = SerializeUtil.serializeObject(requestBody);
-        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_0,
-                HttpMethod.POST, "/",
-                Unpooled.copiedBuffer(bytes)
-        );
-        request.headers().set(HttpHeaders.Names.CONTENT_LENGTH, bytes.length);
-        client.writeAndFlush(request);
-        return future;
+            byte[] bytes = SerializeUtil.serializeObject(requestBody);
+            DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_0,
+                    HttpMethod.POST, "/",
+                    Unpooled.copiedBuffer(bytes)
+            );
+            request.headers().set(HttpHeaders.Names.CONTENT_LENGTH, bytes.length);
+            client.writeAndFlush(request);
+            return future;
+        }
     }
 
     private static CompletableFuture httpUrlTransport(RequestBody requestBody) {
